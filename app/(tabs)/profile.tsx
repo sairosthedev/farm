@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAuth } from '../(auth)/AuthContext';
@@ -36,12 +36,36 @@ const MENU_ITEMS = [
 export default function ProfileScreen() {
   const { logout, user } = useAuth();
 
-  const handleLogout = async () => {
+  const performLogout = async () => {
     try {
       await logout();
+      // Use the direct path to login screen
       router.replace('/(auth)/login');
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('Error during logout:', error);
+    }
+  };
+
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      // For web, handle logout directly
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      if (confirmed) {
+        performLogout();
+      }
+    } else {
+      // For mobile, use Alert
+      Alert.alert(
+        'Confirm Logout',
+        'Are you sure?',
+        [
+          { text: 'Cancel' },
+          { 
+            text: 'Yes',
+            onPress: performLogout
+          }
+        ]
+      );
     }
   };
 
@@ -97,20 +121,24 @@ export default function ProfileScreen() {
 
       <View style={styles.menu}>
         {MENU_ITEMS.map((item) => (
-          <Pressable key={item.id} style={styles.menuItem}>
+          <TouchableOpacity key={item.id} style={styles.menuItem}>
             <View style={styles.menuItemContent}>
               <Ionicons name={item.icon as any} size={24} color="#2D6A4F" />
               <Text style={styles.menuItemText}>{item.title}</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#666" />
-          </Pressable>
+          </TouchableOpacity>
         ))}
       </View>
 
-      <Pressable style={styles.logoutButton} onPress={handleLogout}>
+      <TouchableOpacity 
+        style={styles.logoutButton} 
+        onPress={handleLogout}
+        activeOpacity={0.7}
+      >
         <Ionicons name="log-out" size={24} color="#FF4444" />
         <Text style={styles.logoutText}>Log Out</Text>
-      </Pressable>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
