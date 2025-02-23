@@ -45,18 +45,6 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      // For development/testing purposes - remove in production
-      if (__DEV__) {
-        // Simulate successful login
-        await login('dummy-token', {
-          id: '1',
-          email: email,
-          name: 'Test User'
-        });
-        router.replace('/(tabs)/home');
-        return;
-      }
-
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -74,7 +62,13 @@ export default function LoginScreen() {
         throw new Error(data.message || 'Login failed');
       }
 
+      // First set the authentication state
       await login(data.token, data.user);
+      
+      // Small delay to ensure auth state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Then navigate
       router.replace('/(tabs)/home');
     } catch (err) {
       console.error('Login error:', err);

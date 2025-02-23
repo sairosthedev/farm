@@ -21,10 +21,10 @@ function NavigationGuard() {
     const inProtectedGroup = segments[0] === '(tabs)';
     
     if (!isAuthenticated && inProtectedGroup) {
-      // Only redirect away from protected routes when not authenticated
+      // Redirect to login when accessing protected routes while not authenticated
       router.replace('/');
-    } else if (isAuthenticated && inAuthGroup) {
-      // Only redirect away from auth routes when authenticated
+    } else if (isAuthenticated && (inAuthGroup || segments[0] === undefined)) {
+      // Redirect to home when authenticated and trying to access auth routes or index
       router.replace('/(tabs)/home');
     }
   }, [isAuthenticated, loading, segments]);
