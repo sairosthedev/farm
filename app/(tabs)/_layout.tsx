@@ -1,42 +1,86 @@
 import { Tabs } from 'expo-router';
-import { Pressable, Platform } from 'react-native';
+import { Pressable, Platform, View } from 'react-native';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
+import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const TabBarIcon = ({ name, color, focused }: { name: React.ComponentProps<typeof FontAwesome>['name']; color: string; focused: boolean }) => {
+    const animatedStyle = useAnimatedStyle(() => {
+      return {
+        transform: [
+          { scale: withSpring(focused ? 1.2 : 1, { damping: 12 }) },
+          { translateY: withTiming(focused ? -4 : 0, { duration: 200 }) }
+        ],
+        opacity: withTiming(focused ? 1 : 0.8, { duration: 200 }),
+      };
+    });
+
+    return (
+      <View style={{ alignItems: 'center', justifyContent: 'center', height: 50 }}>
+        <Animated.View style={[animatedStyle, { alignItems: 'center' }]}>
+          <FontAwesome name={name} size={22} color={color} />
+        </Animated.View>
+        {focused && (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              width: 20,
+              height: 3,
+              borderRadius: 1.5,
+              backgroundColor: '#2D6A4F',
+            }}
+          />
+        )}
+      </View>
+    );
+  };
 
   return (
     <Tabs
-      screenOptions={({ route }) => ({
+      screenOptions={({ route, navigation }) => ({
         tabBarActiveTintColor: '#2D6A4F',
-        tabBarInactiveTintColor: colorScheme === 'dark' ? '#888' : '#666',
-        tabBarStyle: route.name === 'index' 
+        tabBarInactiveTintColor: isDark ? '#888' : '#666',
+        tabBarStyle: route.name === 'index'
           ? { display: 'none' }
           : {
-              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFF',
+              backgroundColor: isDark ? '#1A1A1A' : '#FFF',
               borderTopWidth: 0,
-              ...(Platform.OS === 'web' 
+              height: 65,
+              paddingBottom: 10,
+              paddingTop: 5,
+              ...(Platform.OS === 'web'
                 ? {
-                    boxShadow: '0px -2px 4px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0px -2px 20px rgba(0, 0, 0, 0.08)',
                   }
                 : {
-                    elevation: 8,
+                    elevation: 12,
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: -2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: -3 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 12,
                   }
               ),
             },
         headerStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFF',
+          backgroundColor: isDark ? '#1A1A1A' : '#FFF',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? '#333' : '#F0F0F0',
         },
-        headerTintColor: colorScheme === 'dark' ? '#FFF' : '#000',
+        headerTintColor: isDark ? '#FFF' : '#000',
         tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
+          marginBottom: 4,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
         },
         tabBarButton: route.name === 'index' ? () => null : undefined,
       })}>
@@ -48,49 +92,93 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="home"
-        options={{
+        options={({ navigation }) => ({
           title: 'Home',
-          tabBarIcon: ({ color }) => <FontAwesome name="home" size={24} color={color} />,
-        }}
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name="home" color={color} focused={focused} />
+          ),
+        })}
       />
       <Tabs.Screen
         name="marketplace"
-        options={{
-          title: 'Marketplace',
-          tabBarIcon: ({ color }) => <FontAwesome name="shopping-basket" size={24} color={color} />,
-        }}
+        options={({ navigation }) => ({
+          title: 'Market',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name="shopping-basket" color={color} focused={focused} />
+          ),
+        })}
       />
       <Tabs.Screen
         name="logistics"
-        options={{
+        options={({ navigation }) => ({
           title: 'Logistics',
-          tabBarIcon: ({ color }) => <FontAwesome name="truck" size={24} color={color} />,
-        }}
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name="truck" color={color} focused={focused} />
+          ),
+        })}
       />
       <Tabs.Screen
         name="advisory"
-        options={{
+        options={({ navigation }) => ({
           title: 'Advisory',
-          tabBarIcon: ({ color }) => <FontAwesome name="info-circle" size={24} color={color} />,
-        }}
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name="info-circle" color={color} focused={focused} />
+          ),
+        })}
       />
       <Tabs.Screen
         name="community"
-        options={{
+        options={({ navigation }) => ({
           title: 'Community',
-          tabBarIcon: ({ size, color }) => (
-            <Ionicons name="people" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.View style={useAnimatedStyle(() => ({
+                transform: [{ scale: withSpring(focused ? 1.2 : 1) }],
+              }))}>
+                <Ionicons name="people" size={24} color={color} />
+              </Animated.View>
+              {focused && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: -8,
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: '#2D6A4F',
+                  }}
+                />
+              )}
+            </View>
           ),
-        }}
+        })}
       />
       <Tabs.Screen
         name="profile"
-        options={{
+        options={({ navigation }) => ({
           title: 'Profile',
-          tabBarIcon: ({ size, color }) => (
-            <Ionicons name="person" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.View style={useAnimatedStyle(() => ({
+                transform: [{ scale: withSpring(focused ? 1.2 : 1) }],
+              }))}>
+                <Ionicons name="person" size={24} color={color} />
+              </Animated.View>
+              {focused && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: -8,
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: '#2D6A4F',
+                  }}
+                />
+              )}
+            </View>
           ),
-        }}
+        })}
       />
     </Tabs>
   );

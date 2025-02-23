@@ -14,7 +14,7 @@ export default function LandingScreen() {
             <Ionicons name="leaf" size={60} color="#2D6A4F" />
           </View>
           
-          <Text style={styles.title}>Welcome to FarmerApp</Text>
+          <Text style={styles.title}>Welcome to Pamunda Hub</Text>
           <Text style={styles.subtitle}>
             Connect with local farmers, discover fresh produce, and support sustainable agriculture
           </Text>
