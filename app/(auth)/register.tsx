@@ -71,7 +71,7 @@ export default function RegisterScreen() {
       }
 
       await login(data.token, data.user);
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

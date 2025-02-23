@@ -8,25 +8,27 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      screenOptions={{
+      screenOptions={({ route }) => ({
         tabBarActiveTintColor: '#2D6A4F',
         tabBarInactiveTintColor: colorScheme === 'dark' ? '#888' : '#666',
-        tabBarStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFF',
-          borderTopWidth: 0,
-          ...(Platform.OS === 'web' 
-            ? {
-                boxShadow: '0px -2px 4px rgba(0, 0, 0, 0.1)',
-              }
-            : {
-                elevation: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-              }
-          ),
-        },
+        tabBarStyle: route.name === 'index' 
+          ? { display: 'none' }
+          : {
+              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFF',
+              borderTopWidth: 0,
+              ...(Platform.OS === 'web' 
+                ? {
+                    boxShadow: '0px -2px 4px rgba(0, 0, 0, 0.1)',
+                  }
+                : {
+                    elevation: 8,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: -2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                  }
+              ),
+            },
         headerStyle: {
           backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFF',
         },
@@ -36,7 +38,14 @@ export default function TabLayout() {
           fontSize: 12,
           fontWeight: '500',
         },
-      }}>
+        tabBarButton: route.name === 'index' ? () => null : undefined,
+      })}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="home"
         options={{

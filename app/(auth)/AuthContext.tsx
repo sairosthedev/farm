@@ -77,10 +77,14 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await storage.removeItem('authToken');
-      await storage.removeItem('userData');
+      await Promise.all([
+        storage.removeItem('authToken'),
+        storage.removeItem('userData')
+      ]);
       setIsAuthenticated(false);
       setUser(null);
+      // Return a promise that resolves after state updates are definitely complete
+      return new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
       console.error('Error removing auth info:', error);
       throw error;

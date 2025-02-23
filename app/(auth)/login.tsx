@@ -53,7 +53,7 @@ export default function LoginScreen() {
           email: email,
           name: 'Test User'
         });
-        router.push('/(tabs)');
+        router.replace('/(tabs)/home');
         return;
       }
 
@@ -75,7 +75,7 @@ export default function LoginScreen() {
       }
 
       await login(data.token, data.user);
-      router.push('/(tabs)');
+      router.replace('/(tabs)/home');
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred during login');

@@ -21,11 +21,11 @@ function NavigationGuard() {
     const inProtectedGroup = segments[0] === '(tabs)';
     
     if (!isAuthenticated && inProtectedGroup) {
-      // Redirect to landing page if trying to access protected routes while not authenticated
+      // Only redirect away from protected routes when not authenticated
       router.replace('/');
     } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to home if authenticated and trying to access auth pages
-      router.replace('/(tabs)');
+      // Only redirect away from auth routes when authenticated
+      router.replace('/(tabs)/home');
     }
   }, [isAuthenticated, loading, segments]);
 
@@ -37,7 +37,14 @@ function RootLayoutNav() {
     <>
       <NavigationGuard />
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="index" 
+          options={{ 
+            headerShown: false,
+            presentation: 'modal',
+            animation: 'none'
+          }} 
+        />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
