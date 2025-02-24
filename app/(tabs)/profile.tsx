@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, Platform, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Alert, TouchableOpacity, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAuth } from '../(auth)/AuthContext';
 import { router } from 'expo-router';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 const PROFILE_DATA = {
   user: {
@@ -18,28 +19,57 @@ const PROFILE_DATA = {
     rating: 4.8,
   },
   badges: [
-    { id: '1', name: 'Top Seller', icon: 'trophy' },
-    { id: '2', name: 'Verified Farmer', icon: 'shield-checkmark' },
-    { id: '3', name: 'Early Adopter', icon: 'trending-up' },
+    { id: '1', name: 'Top Seller', icon: 'trophy', description: 'Achieved outstanding sales performance' },
+    { id: '2', name: 'Verified Farmer', icon: 'shield-checkmark', description: 'Identity and credentials verified' },
+    { id: '3', name: 'Early Adopter', icon: 'trending-up', description: 'One of our first platform users' },
   ],
 };
 
 const MENU_ITEMS = [
-  { id: '1', title: 'My Products', icon: 'cube' },
-  { id: '2', title: 'Orders', icon: 'cart' },
-  { id: '3', title: 'Transaction History', icon: 'cash' },
-  { id: '4', title: 'Saved Items', icon: 'heart' },
-  { id: '5', title: 'Settings', icon: 'settings' },
-  { id: '6', title: 'Help & Support', icon: 'help-circle' },
+  { id: '1', title: 'My Products', icon: 'cube', route: '/(tabs)/marketplace', params: { filter: 'my-products' } },
+  { id: '2', title: 'Orders', icon: 'cart', route: '/orders' },
+  { id: '3', title: 'Transaction History', icon: 'cash', route: '/transactions' },
+  { id: '4', title: 'Saved Items', icon: 'heart', route: '/saved' },
+  { id: '5', title: 'Settings', icon: 'settings', route: '/(tabs)/settings' },
+  { id: '6', title: 'Help & Support', icon: 'help-circle', route: '/support' },
 ];
 
 export default function ProfileScreen() {
   const { logout, user } = useAuth();
 
+  const handleMenuItemPress = (item: typeof MENU_ITEMS[0]) => {
+    if (item.route === '/(tabs)/marketplace' || item.route === '/(tabs)/settings') {
+      router.push({ pathname: item.route, params: item.params });
+    } else {
+      Alert.alert('Coming Soon', `The ${item.title} feature will be available soon!`);
+    }
+  };
+
+  const handleBadgePress = (badge: typeof PROFILE_DATA.badges[0]) => {
+    Alert.alert(badge.name, badge.description);
+  };
+
+  const handleEditProfile = () => {
+    Alert.alert('Coming Soon', 'Profile editing will be available in the next update!');
+  };
+
+  const handleStatPress = (statType: string) => {
+    switch (statType) {
+      case 'products':
+        router.push('/(tabs)/marketplace?filter=my-products');
+        break;
+      case 'sales':
+        Alert.alert('Coming Soon', 'Transaction history will be available soon!');
+        break;
+      case 'rating':
+        Alert.alert('Ratings', 'Based on customer reviews and successful transactions');
+        break;
+    }
+  };
+
   const performLogout = async () => {
     try {
       await logout();
-      // Use the direct path to login screen
       router.replace('/(auth)/login');
     } catch (error) {
       console.error('Error during logout:', error);
@@ -48,13 +78,11 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
-      // For web, handle logout directly
       const confirmed = window.confirm('Are you sure you want to logout?');
       if (confirmed) {
         performLogout();
       }
     } else {
-      // For mobile, use Alert
       Alert.alert(
         'Confirm Logout',
         'Are you sure?',
@@ -73,11 +101,17 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.profileHeader}>
-          <Image
-            source={{ uri: user?.image || PROFILE_DATA.user.image }}
-            style={styles.profileImage}
-            contentFit="cover"
-          />
+          <Pressable onPress={handleEditProfile}>
+            <Image
+              source={{ uri: user?.image || PROFILE_DATA.user.image }}
+              style={styles.profileImage}
+              contentFit="cover"
+              transition={300}
+            />
+            <View style={styles.editOverlay}>
+              <Ionicons name="pencil" size={16} color="#FFF" />
+            </View>
+          </Pressable>
           <View style={styles.profileInfo}>
             <View style={styles.nameContainer}>
               <Text style={styles.name}>{user?.name || PROFILE_DATA.user.name}</Text>
@@ -93,40 +127,63 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.stats}>
-          <View style={styles.statItem}>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => handleStatPress('products')}
+          >
             <Text style={styles.statNumber}>{PROFILE_DATA.stats.products}</Text>
             <Text style={styles.statLabel}>Products</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => handleStatPress('sales')}
+          >
             <Text style={styles.statNumber}>{PROFILE_DATA.stats.sales}</Text>
             <Text style={styles.statLabel}>Sales</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => handleStatPress('rating')}
+          >
             <Text style={styles.statNumber}>{PROFILE_DATA.stats.rating}</Text>
             <Text style={styles.statLabel}>Rating</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.badges}>
           {PROFILE_DATA.badges.map((badge) => (
-            <View key={badge.id} style={styles.badge}>
+            <TouchableOpacity
+              key={badge.id}
+              style={styles.badge}
+              onPress={() => handleBadgePress(badge)}
+              activeOpacity={0.7}
+            >
               <Ionicons name={badge.icon as any} size={20} color="#2D6A4F" />
               <Text style={styles.badgeText}>{badge.name}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </View>
 
       <View style={styles.menu}>
         {MENU_ITEMS.map((item) => (
-          <TouchableOpacity key={item.id} style={styles.menuItem}>
+          <TouchableOpacity 
+            key={item.id} 
+            style={styles.menuItem}
+            onPress={() => handleMenuItemPress(item)}
+            activeOpacity={0.7}
+          >
             <View style={styles.menuItemContent}>
               <Ionicons name={item.icon as any} size={24} color="#2D6A4F" />
               <Text style={styles.menuItemText}>{item.title}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#666" />
+            <Animated.View style={useAnimatedStyle(() => ({
+              transform: [{ translateX: withSpring(0) }],
+            }))}>
+              <Ionicons name="chevron-forward" size={24} color="#666" />
+            </Animated.View>
           </TouchableOpacity>
         ))}
       </View>
@@ -163,6 +220,19 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     marginRight: 16,
   },
+  editOverlay: {
+    position: 'absolute',
+    right: 16,
+    bottom: 0,
+    backgroundColor: '#2D6A4F',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
   profileInfo: {
     flex: 1,
   },
@@ -195,6 +265,7 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    padding: 8,
   },
   statNumber: {
     fontSize: 20,

@@ -82,7 +82,7 @@ export default function TabLayout() {
           marginBottom: 4,
           fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
         },
-        tabBarButton: (route.name === 'index' || route.name === 'add-product') ? () => null : undefined,
+        tabBarButton: (route.name === 'index' || route.name === 'add-product' || route.name === 'settings') ? () => null : undefined,
       })}>
       <Tabs.Screen
         name="index"
@@ -185,6 +185,13 @@ export default function TabLayout() {
             </View>
           ),
         })}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null,
+          headerShown: true,
+        }}
       />
     </Tabs>
   );
