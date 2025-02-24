@@ -17,6 +17,7 @@ type Post = {
   timestamp: string;
   tags: string[];
   isFeatured?: boolean;
+  category?: 'general' | 'policy' | 'expert-qa' | 'success-story';
 };
 
 type Event = {
@@ -27,6 +28,32 @@ type Event = {
   attendees: number;
   maxCapacity: number;
   status: 'Open' | 'Full' | 'Ongoing';
+  image?: string;
+  type: 'workshop' | 'webinar' | 'training';
+  organizer?: string;
+  price?: string;
+};
+
+type Forum = {
+  id: string;
+  name: string;
+  description: string;
+  members: number;
+  topics: number;
+  lastActive: string;
+  category: 'crop' | 'livestock' | 'policy' | 'technology' | 'market';
+  image?: string;
+};
+
+type GovernmentProgram = {
+  id: string;
+  title: string;
+  organization: string;
+  type: 'grant' | 'subsidy' | 'training';
+  deadline: string;
+  status: 'Open' | 'Closing Soon' | 'Closed';
+  description: string;
+  eligibility: string[];
   image?: string;
 };
 
@@ -61,6 +88,54 @@ const SAMPLE_POSTS: Post[] = [
   },
 ];
 
+const FORUMS: Forum[] = [
+  {
+    id: '1',
+    name: 'Crop Farmers Network',
+    description: 'Discussion group for crop farming techniques, pest control, and soil management',
+    members: 1250,
+    topics: 324,
+    lastActive: '5m ago',
+    category: 'crop',
+    image: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?q=80&w=300',
+  },
+  {
+    id: '2',
+    name: 'Agricultural Policy Hub',
+    description: 'Updates and discussions on government policies affecting farmers',
+    members: 856,
+    topics: 156,
+    lastActive: '2h ago',
+    category: 'policy',
+    image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=300',
+  },
+];
+
+const GOVERNMENT_PROGRAMS: GovernmentProgram[] = [
+  {
+    id: '1',
+    title: 'Sustainable Farming Grant 2024',
+    organization: 'Ministry of Agriculture',
+    type: 'grant',
+    deadline: 'Apr 30, 2024',
+    status: 'Open',
+    description: 'Financial support for farmers adopting sustainable farming practices',
+    eligibility: ['Small-scale farmers', 'Minimum 2 years experience', 'Valid farming permit'],
+    image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=300',
+  },
+  {
+    id: '2',
+    title: 'Agricultural Input Subsidy',
+    organization: 'Rural Development Agency',
+    type: 'subsidy',
+    deadline: 'Mar 31, 2024',
+    status: 'Closing Soon',
+    description: 'Subsidies for seeds, fertilizers, and farming equipment',
+    eligibility: ['Registered farmers', 'Less than 5 hectares land'],
+    image: 'https://images.unsplash.com/photo-1589923188900-85dae523342b?q=80&w=300',
+  },
+];
+
 const UPCOMING_EVENTS: Event[] = [
   {
     id: '1',
@@ -70,26 +145,109 @@ const UPCOMING_EVENTS: Event[] = [
     attendees: 45,
     maxCapacity: 50,
     status: 'Open',
+    type: 'workshop',
     image: 'https://images.unsplash.com/photo-1563906267088-b029e7101114?q=80&w=300',
+    organizer: 'Agricultural Extension Services',
   },
   {
     id: '2',
-    title: 'Organic Farming Seminar',
-    date: 'Mar 20, 2024',
-    location: 'Bulawayo Farmers Hub',
-    attendees: 30,
-    maxCapacity: 30,
-    status: 'Full',
+    title: 'Digital Farming Webinar',
+    date: 'Mar 18, 2024',
+    location: 'Online',
+    attendees: 120,
+    maxCapacity: 200,
+    status: 'Open',
+    type: 'webinar',
     image: 'https://images.unsplash.com/photo-1592878904946-b3cd8ae243d0?q=80&w=300',
+    organizer: 'AgriTech Institute',
+    price: 'Free',
   },
 ];
 
-const FILTER_OPTIONS = ['All', 'Questions', 'Tips', 'News', 'Success Stories'];
+const FILTER_OPTIONS = ['All', 'Questions', 'Tips', 'News', 'Success Stories', 'Policy Updates', 'Expert Q&A'];
 
 export default function CommunityScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [activeTab, setActiveTab] = useState('feed');
+
+  const renderForums = () => (
+    <View style={styles.forumsSection}>
+      <Text style={styles.sectionTitle}>Popular Forums</Text>
+      {FORUMS.map((forum) => (
+        <Pressable key={forum.id} style={styles.forumCard}>
+          <Image
+            source={{ uri: forum.image }}
+            style={styles.forumImage}
+            contentFit="cover"
+          />
+          <View style={styles.forumContent}>
+            <Text style={styles.forumName}>{forum.name}</Text>
+            <Text style={styles.forumDescription}>{forum.description}</Text>
+            <View style={styles.forumStats}>
+              <Text style={styles.forumStatText}>
+                <Ionicons name="people" size={14} color="#666" /> {forum.members} members
+              </Text>
+              <Text style={styles.forumStatText}>
+                <Ionicons name="chatbubbles" size={14} color="#666" /> {forum.topics} topics
+              </Text>
+              <Text style={styles.forumStatText}>
+                <Ionicons name="time" size={14} color="#666" /> {forum.lastActive}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  const renderGovernmentPrograms = () => (
+    <View style={styles.programsSection}>
+      <Text style={styles.sectionTitle}>Government & NGO Programs</Text>
+      {GOVERNMENT_PROGRAMS.map((program) => (
+        <Pressable key={program.id} style={styles.programCard}>
+          <Image
+            source={{ uri: program.image }}
+            style={styles.programImage}
+            contentFit="cover"
+          />
+          <View style={styles.programContent}>
+            <View style={styles.programHeader}>
+              <Text style={styles.programTitle}>{program.title}</Text>
+              <View style={[
+                styles.programStatus,
+                { backgroundColor: program.status === 'Closing Soon' ? '#FEF3C7' : '#DCFCE7' }
+              ]}>
+                <Text style={[
+                  styles.programStatusText,
+                  { color: program.status === 'Closing Soon' ? '#92400E' : '#166534' }
+                ]}>{program.status}</Text>
+              </View>
+            </View>
+            <Text style={styles.programOrg}>{program.organization}</Text>
+            <Text style={styles.programDescription}>{program.description}</Text>
+            <View style={styles.programDeadline}>
+              <Ionicons name="calendar" size={14} color="#666" />
+              <Text style={styles.programDeadlineText}>Deadline: {program.deadline}</Text>
+            </View>
+            <View style={styles.eligibilityContainer}>
+              <Text style={styles.eligibilityTitle}>Eligibility:</Text>
+              {program.eligibility.map((criteria, index) => (
+                <View key={index} style={styles.eligibilityItem}>
+                  <Ionicons name="checkmark-circle" size={14} color="#2D6A4F" />
+                  <Text style={styles.eligibilityText}>{criteria}</Text>
+                </View>
+              ))}
+            </View>
+            <Pressable style={styles.applyButton}>
+              <Text style={styles.applyButtonText}>Apply Now</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -104,12 +262,35 @@ export default function CommunityScreen() {
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search posts and events..."
+          placeholder="Search posts, events, and programs..."
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
       </View>
 
+      <View style={styles.tabContainer}>
+        <Pressable
+          style={[styles.tab, activeTab === 'feed' && styles.activeTab]}
+          onPress={() => setActiveTab('feed')}
+        >
+          <Text style={[styles.tabText, activeTab === 'feed' && styles.activeTabText]}>Feed</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === 'forums' && styles.activeTab]}
+          onPress={() => setActiveTab('forums')}
+        >
+          <Text style={[styles.tabText, activeTab === 'forums' && styles.activeTabText]}>Forums</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === 'programs' && styles.activeTab]}
+          onPress={() => setActiveTab('programs')}
+        >
+          <Text style={[styles.tabText, activeTab === 'programs' && styles.activeTabText]}>Programs</Text>
+        </Pressable>
+      </View>
+
+      {activeTab === 'feed' && (
+        <>
       <View style={styles.eventsSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Upcoming Events</Text>
@@ -152,7 +333,6 @@ export default function CommunityScreen() {
           ))}
         </ScrollView>
       </View>
-
       <View style={styles.createPostSection}>
         <View style={styles.createPost}>
           <Image
@@ -184,7 +364,6 @@ export default function CommunityScreen() {
           ))}
         </ScrollView>
       </View>
-
       <View style={styles.feed}>
         {SAMPLE_POSTS.filter(post => post.isFeatured).map((post) => (
           <View key={post.id} style={[styles.postCard, styles.featuredPost]}>
@@ -285,6 +464,11 @@ export default function CommunityScreen() {
           </View>
         ))}
       </View>
+        </>
+      )}
+
+      {activeTab === 'forums' && renderForums()}
+      {activeTab === 'programs' && renderGovernmentPrograms()}
     </ScrollView>
   );
 }
@@ -569,5 +753,156 @@ const styles = StyleSheet.create({
   actionText: {
     marginLeft: 4,
     color: '#666',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    padding: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: '#2D6A4F',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  activeTabText: {
+    color: '#FFF',
+  },
+  forumsSection: {
+    padding: 16,
+  },
+  forumCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  forumImage: {
+    width: '100%',
+    height: 120,
+  },
+  forumContent: {
+    padding: 16,
+  },
+  forumName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  forumDescription: {
+    color: '#4B5563',
+    marginBottom: 12,
+  },
+  forumStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  forumStatText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  programsSection: {
+    padding: 16,
+  },
+  programCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  programImage: {
+    width: '100%',
+    height: 160,
+  },
+  programContent: {
+    padding: 16,
+  },
+  programHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  programTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 12,
+  },
+  programStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  programStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  programOrg: {
+    color: '#666',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  programDescription: {
+    color: '#4B5563',
+    marginBottom: 12,
+  },
+  programDeadline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  programDeadlineText: {
+    color: '#666',
+    marginLeft: 4,
+  },
+  eligibilityContainer: {
+    marginBottom: 16,
+  },
+  eligibilityTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  eligibilityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  eligibilityText: {
+    marginLeft: 8,
+    color: '#4B5563',
+  },
+  applyButton: {
+    backgroundColor: '#2D6A4F',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
