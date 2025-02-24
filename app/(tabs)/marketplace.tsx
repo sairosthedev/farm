@@ -1,54 +1,26 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  quantity: string;
-  location: string;
-  image: string;
-  seller: {
-    name: string;
-    verified: boolean;
-  };
-};
-
-const SAMPLE_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Fresh Maize',
-    price: 150,
-    quantity: '50kg',
-    location: 'Harare',
-    image: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?q=80&w=600',
-    seller: {
-      name: 'John Moyo',
-      verified: true,
-    },
-  },
-  {
-    id: '2',
-    name: 'Organic Tomatoes',
-    price: 80,
-    quantity: '20kg',
-    location: 'Bulawayo',
-    image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?q=80&w=600',
-    seller: {
-      name: 'Sarah Ndlovu',
-      verified: true,
-    },
-  },
-];
+import { useProductStore, Product } from '../store/ProductStore';
+import { BlurView } from 'expo-blur';
+import { router } from 'expo-router';
 
 export default function MarketplaceScreen() {
-  const [category, setCategory] = useState('all');
+  const { products, filteredProducts, selectedCategory, setCategory, applyFilters } = useProductStore();
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    applyFilters();
+  }, []);
 
   const renderProduct = ({ item }: { item: Product }) => (
-    <Pressable style={styles.productCard}>
+    <Pressable 
+      style={styles.productCard}
+      onPress={() => setSelectedProduct(item)}
+    >
       <Image
         source={{ uri: item.image }}
         style={styles.productImage}
@@ -74,11 +46,119 @@ export default function MarketplaceScreen() {
     </Pressable>
   );
 
+  const ProductDetailsModal = () => {
+    if (!selectedProduct) return null;
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={!!selectedProduct}
+        onRequestClose={() => setSelectedProduct(null)}
+      >
+        <BlurView intensity={20} style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Pressable 
+              style={styles.closeButton}
+              onPress={() => setSelectedProduct(null)}
+            >
+              <Ionicons name="close" size={24} color="#000" />
+            </Pressable>
+            
+            <Image
+              source={{ uri: selectedProduct.image }}
+              style={styles.modalImage}
+              contentFit="cover"
+            />
+            
+            <View style={styles.modalInfo}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{selectedProduct.name}</Text>
+                <Text style={styles.modalPrice}>${selectedProduct.price}</Text>
+              </View>
+              
+              <Text style={styles.modalQuantity}>Quantity: {selectedProduct.quantity}</Text>
+              
+              <View style={styles.modalSellerInfo}>
+                <Image
+                  source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300' }}
+                  style={styles.sellerImage}
+                  contentFit="cover"
+                />
+                <View style={styles.sellerDetails}>
+                  <Text style={styles.modalSellerName}>{selectedProduct.seller.name}</Text>
+                  {selectedProduct.seller.verified && (
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#2D6A4F" />
+                      <Text style={styles.verifiedText}>Verified Seller</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.modalLocation}>
+                <Ionicons name="location" size={18} color="#666" />
+                <Text style={styles.modalLocationText}>{selectedProduct.location}</Text>
+              </View>
+
+              <Pressable style={styles.contactButton}>
+                <Ionicons name="chatbubble-outline" size={20} color="#FFF" />
+                <Text style={styles.contactButtonText}>Contact Seller</Text>
+              </Pressable>
+            </View>
+          </View>
+        </BlurView>
+      </Modal>
+    );
+  };
+
+  const FiltersModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showFilters}
+      onRequestClose={() => setShowFilters(false)}
+    >
+      <BlurView intensity={20} style={styles.modalOverlay}>
+        <View style={[styles.modalContent, styles.filtersContent]}>
+          <View style={styles.filtersHeader}>
+            <Text style={styles.filtersTitle}>Filters</Text>
+            <Pressable onPress={() => setShowFilters(false)}>
+              <Ionicons name="close" size={24} color="#000" />
+            </Pressable>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Price Range</Text>
+            {/* Add price range slider here */}
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Location</Text>
+            {/* Add location filter here */}
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Seller Type</Text>
+            {/* Add seller type filter here */}
+          </View>
+
+          <Pressable style={styles.applyFiltersButton} onPress={() => setShowFilters(false)}>
+            <Text style={styles.applyFiltersText}>Apply Filters</Text>
+          </Pressable>
+        </View>
+      </BlurView>
+    </Modal>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Marketplace</Text>
-        <Pressable style={styles.filterButton}>
+        <Pressable 
+          style={styles.filterButton}
+          onPress={() => setShowFilters(true)}
+        >
           <Ionicons name="filter" size={24} color="#2D6A4F" />
         </Pressable>
       </View>
@@ -90,13 +170,13 @@ export default function MarketplaceScreen() {
               key={cat}
               style={[
                 styles.categoryButton,
-                category === cat.toLowerCase() && styles.categoryButtonActive,
+                selectedCategory === cat.toLowerCase() && styles.categoryButtonActive,
               ]}
               onPress={() => setCategory(cat.toLowerCase())}>
               <Text
                 style={[
                   styles.categoryText,
-                  category === cat.toLowerCase() && styles.categoryTextActive,
+                  selectedCategory === cat.toLowerCase() && styles.categoryTextActive,
                 ]}>
                 {cat}
               </Text>
@@ -106,15 +186,21 @@ export default function MarketplaceScreen() {
       </View>
 
       <FlashList
-        data={SAMPLE_PRODUCTS}
+        data={filteredProducts.length > 0 ? filteredProducts : products}
         renderItem={renderProduct}
         estimatedItemSize={200}
         contentContainerStyle={styles.productList}
       />
 
-      <Pressable style={styles.addButton}>
+      <Pressable 
+        style={styles.addButton}
+        onPress={() => router.push('/add-product')}
+      >
         <Ionicons name="add" size={24} color="#FFF" />
       </Pressable>
+
+      <ProductDetailsModal />
+      <FiltersModal />
     </View>
   );
 }
@@ -225,5 +311,145 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    minHeight: '80%',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 1,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 8,
+  },
+  modalImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 16,
+  },
+  modalInfo: {
+    marginTop: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    flex: 1,
+  },
+  modalPrice: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2D6A4F',
+  },
+  modalQuantity: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
+  },
+  modalSellerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: '#F7F7F7',
+    padding: 12,
+    borderRadius: 12,
+  },
+  sellerImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  sellerDetails: {
+    flex: 1,
+  },
+  modalSellerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verifiedText: {
+    color: '#2D6A4F',
+    marginLeft: 4,
+    fontSize: 14,
+  },
+  modalLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalLocationText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#666',
+  },
+  contactButton: {
+    backgroundColor: '#2D6A4F',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  contactButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  filtersContent: {
+    minHeight: '60%',
+  },
+  filtersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  filtersTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  applyFiltersButton: {
+    backgroundColor: '#2D6A4F',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  applyFiltersText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

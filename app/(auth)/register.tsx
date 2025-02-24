@@ -16,7 +16,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 // API URL configuration
-const DEV_IP = '192.168.100.74'; // Replace with your computer's local IP address
+const DEV_IP = '192.168.100.16'; // Replace with your computer's local IP address
 const API_URL = Platform.select({
   web: 'http://localhost:5000/api',
   // For Expo Go on physical device, use local IP
@@ -160,9 +160,8 @@ export default function RegisterScreen() {
                   <Text style={styles.buttonText}>Create Account</Text>
                 )}
               </TouchableOpacity>
-
               <TouchableOpacity
-                onPress={() => router.push('/auth/login')}
+                onPress={() => router.push('/login')}
                 style={styles.linkButton}
               >
                 <Text style={styles.linkText}>Already have an account? Login</Text>
