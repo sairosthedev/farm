@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useState } from 'react';
 
 type Transport = {
   id: string;
@@ -61,6 +62,26 @@ const SAMPLE_TRANSPORTS: Transport[] = [
 ];
 
 export default function LogisticsScreen() {
+  const [activeBooking, setActiveBooking] = useState<Transport | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedTransport, setSelectedTransport] = useState<Transport | null>(null);
+
+  const handleBooking = (transport: Transport) => {
+    setSelectedTransport(transport);
+    setShowBookingModal(true);
+  };
+
+  const confirmBooking = () => {
+    if (selectedTransport) {
+      setActiveBooking(selectedTransport);
+      setShowBookingModal(false);
+      Alert.alert(
+        'Booking Confirmed',
+        `Your transport with ${selectedTransport.driver.name} has been booked successfully!`
+      );
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <LinearGradient
@@ -71,36 +92,68 @@ export default function LogisticsScreen() {
         <Text style={styles.subtitle}>Find reliable transport for your produce</Text>
       </LinearGradient>
 
-      <View style={styles.activeDelivery}>
-        <View style={styles.deliveryHeader}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="time" size={24} color="#2D6A4F" />
+      {activeBooking ? (
+        <View style={styles.activeDelivery}>
+          <View style={styles.deliveryHeader}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="time" size={24} color="#2D6A4F" />
+            </View>
+            <Text style={styles.deliveryTitle}>Active Delivery</Text>
           </View>
-          <Text style={styles.deliveryTitle}>Active Delivery</Text>
-        </View>
-        <View style={styles.deliveryContent}>
-          <View style={styles.deliveryProgress}>
-            <View style={styles.progressLine} />
-            <View style={styles.progressSteps}>
-              <View style={[styles.progressStep, styles.progressStepCompleted]}>
-                <Ionicons name="checkmark" size={16} color="#FFF" />
-                <Text style={styles.stepText}>Pickup</Text>
-              </View>
-              <View style={[styles.progressStep, styles.progressStepActive]}>
-                <View style={styles.pulsingDot} />
-                <Text style={styles.stepText}>In Transit</Text>
-              </View>
-              <View style={styles.progressStep}>
-                <Text style={styles.stepText}>Delivered</Text>
+          <View style={styles.deliveryContent}>
+            <View style={styles.activeBookingInfo}>
+              <Image
+                source={{ uri: activeBooking.driver.image }}
+                style={styles.activeDriverImage}
+                contentFit="cover"
+              />
+              <View style={styles.activeBookingDetails}>
+                <Text style={styles.activeDriverName}>{activeBooking.driver.name}</Text>
+                <Text style={styles.activeTransportType}>{activeBooking.type}</Text>
               </View>
             </View>
-          </View>
-          <View style={styles.deliveryDetails}>
-            <Ionicons name="time-outline" size={20} color="#666" />
-            <Text style={styles.deliveryInfo}>Estimated arrival in 2 hours</Text>
+            <View style={styles.deliveryProgress}>
+              <View style={styles.progressLine} />
+              <View style={styles.progressSteps}>
+                <View style={[styles.progressStep, styles.progressStepCompleted]}>
+                  <Ionicons name="checkmark" size={16} color="#FFF" />
+                  <Text style={styles.stepText}>Pickup</Text>
+                </View>
+                <View style={[styles.progressStep, styles.progressStepActive]}>
+                  <View style={styles.pulsingDot} />
+                  <Text style={styles.stepText}>In Transit</Text>
+                </View>
+                <View style={styles.progressStep}>
+                  <Text style={styles.stepText}>Delivered</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.deliveryDetails}>
+              <Ionicons name="time-outline" size={20} color="#666" />
+              <Text style={styles.deliveryInfo}>Estimated arrival in 2 hours</Text>
+            </View>
+            <Pressable 
+              style={styles.cancelButton}
+              onPress={() => {
+                Alert.alert(
+                  'Cancel Booking',
+                  'Are you sure you want to cancel this booking?',
+                  [
+                    { text: 'No', style: 'cancel' },
+                    { 
+                      text: 'Yes', 
+                      style: 'destructive',
+                      onPress: () => setActiveBooking(null)
+                    }
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+            </Pressable>
           </View>
         </View>
-      </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Available Transport</Text>
@@ -109,6 +162,7 @@ export default function LogisticsScreen() {
           <Pressable 
             key={transport.id} 
             style={styles.transportCard}
+            onPress={() => handleBooking(transport)}
           >
             <LinearGradient
               colors={['rgba(45, 106, 79, 0.05)', 'rgba(45, 106, 79, 0.02)']}
@@ -171,7 +225,10 @@ export default function LogisticsScreen() {
                   <Text style={styles.priceUnit}>/trip</Text>
                 </View>
               </View>
-              <Pressable style={styles.bookButton}>
+              <Pressable 
+                style={styles.bookButton}
+                onPress={() => handleBooking(transport)}
+              >
                 <Text style={styles.bookButtonText}>Book Now</Text>
                 <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.buttonIcon} />
               </Pressable>
@@ -179,6 +236,49 @@ export default function LogisticsScreen() {
           </Pressable>
         ))}
       </View>
+
+      <Modal
+        visible={showBookingModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBookingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Confirm Booking</Text>
+            {selectedTransport && (
+              <>
+                <View style={styles.modalTransportInfo}>
+                  <Image
+                    source={{ uri: selectedTransport.driver.image }}
+                    style={styles.modalDriverImage}
+                    contentFit="cover"
+                  />
+                  <View>
+                    <Text style={styles.modalDriverName}>{selectedTransport.driver.name}</Text>
+                    <Text style={styles.modalTransportType}>{selectedTransport.type}</Text>
+                    <Text style={styles.modalPrice}>${selectedTransport.price}/trip</Text>
+                  </View>
+                </View>
+                <View style={styles.modalButtons}>
+                  <Pressable 
+                    style={[styles.modalButton, styles.modalButtonCancel]}
+                    onPress={() => setShowBookingModal(false)}
+                  >
+                    <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+                  </Pressable>
+                  <Pressable 
+                    style={[styles.modalButton, styles.modalButtonConfirm]}
+                    onPress={confirmBooking}
+                  >
+                    <Text style={styles.modalButtonTextConfirm}>Confirm Booking</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -442,5 +542,110 @@ const styles = StyleSheet.create({
     color: '#2D6A4F',
     fontSize: 14,
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    minHeight: 300,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalTransportInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalDriverImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: 16,
+  },
+  modalDriverName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  modalTransportType: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 4,
+  },
+  modalPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2D6A4F',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#F5F5F5',
+  },
+  modalButtonConfirm: {
+    backgroundColor: '#2D6A4F',
+  },
+  modalButtonTextCancel: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonTextConfirm: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  activeBookingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  activeDriverImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  activeBookingDetails: {
+    flex: 1,
+  },
+  activeDriverName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  activeTransportType: {
+    fontSize: 14,
+    color: '#666',
+  },
+  cancelButton: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#FFE5E5',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
