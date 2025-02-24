@@ -1,46 +1,31 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { api, storage, authApi } from '../utils/api';
+
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  isAdmin: boolean;
+  avatar?: string;
+  expertise?: string[];
+}
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: any | null;
-  login: (token: string, userData: any) => Promise<void>;
+  user: User | null;
+  login: (token: string, userData: User) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
+  updateUser: (userData: Partial<User>) => Promise<void>;
 }
-
-// Storage adapter for different platforms
-const storage = {
-  async getItem(key: string) {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
-    }
-    return await SecureStore.getItemAsync(key);
-  },
-
-  async setItem(key: string, value: string) {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
-      return;
-    }
-    return await SecureStore.setItemAsync(key, value);
-  },
-
-  async removeItem(key: string) {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
-      return;
-    }
-    return await SecureStore.deleteItemAsync(key);
-  }
-};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,8 +38,20 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedUser = await storage.getItem('userData');
       
       if (token && storedUser) {
+        const userData = JSON.parse(storedUser);
+        api.setToken(token);
         setIsAuthenticated(true);
-        setUser(JSON.parse(storedUser));
+        setUser(userData);
+
+        // Verify token and get fresh user data
+        try {
+          const { user: freshUserData } = await authApi.getCurrentUser();
+          setUser(freshUserData);
+        } catch (error) {
+          console.error('Error refreshing user data:', error);
+          // If token is invalid, log out
+          await logout();
+        }
       }
     } catch (error) {
       console.error('Error loading auth info:', error);
@@ -63,10 +60,11 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (token: string, userData: any) => {
+  const login = async (token: string, userData: User) => {
     try {
       await storage.setItem('authToken', token);
       await storage.setItem('userData', JSON.stringify(userData));
+      api.setToken(token);
       setIsAuthenticated(true);
       setUser(userData);
     } catch (error) {
@@ -81,6 +79,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         storage.removeItem('authToken'),
         storage.removeItem('userData')
       ]);
+      api.setToken(null);
       setIsAuthenticated(false);
       setUser(null);
       // Return a promise that resolves after state updates are definitely complete
@@ -91,8 +90,19 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateUser = async (userData: Partial<User>) => {
+    try {
+      const { user: updatedUser } = await authApi.updateProfile(userData);
+      setUser(updatedUser);
+      await storage.setItem('userData', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

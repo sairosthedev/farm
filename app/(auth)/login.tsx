@@ -14,6 +14,7 @@ import {
 import { useAuth } from './AuthContext';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { authApi } from '../utils/api';
 
 // API URL configuration
 const DEV_IP = '192.168.100.16'; // Replace with your computer's local IP address
@@ -45,30 +46,8 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      // First set the authentication state
-      await login(data.token, data.user);
-      
-      // Small delay to ensure auth state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Then navigate
+      const { token, user } = await authApi.login(email, password);
+      await login(token, user);
       router.replace('/(tabs)/home');
     } catch (err) {
       console.error('Login error:', err);

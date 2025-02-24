@@ -14,6 +14,7 @@ import {
 import { useAuth } from './AuthContext';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { authApi } from '../utils/api';
 
 // API URL configuration
 const DEV_IP = '192.168.100.16'; // Replace with your computer's local IP address
@@ -29,16 +30,27 @@ console.log('Platform:', Platform.OS);
 console.log('Using API URL:', API_URL);
 
 export default function RegisterScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
 
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (error) setError('');
+  };
+
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword || !name) {
+    const { name, email, phone, password, confirmPassword } = formData;
+
+    if (!email || !password || !confirmPassword || !name || !phone) {
       setError('Please fill in all fields');
       return;
     }
@@ -48,32 +60,33 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+      const { token, user } = await authApi.register({
+        name,
+        email,
+        password,
+        phone
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
-      await login(data.token, data.user);
+      // First set the authentication state
+      await login(token, user);
+      
+      // Small delay to ensure auth state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Then navigate
       router.replace('/(tabs)/home');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Registration error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during registration');
     } finally {
       setIsLoading(false);
     }
@@ -105,8 +118,8 @@ export default function RegisterScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Full Name"
-                  value={name}
-                  onChangeText={setName}
+                  value={formData.name}
+                  onChangeText={(value) => handleChange('name', value)}
                   autoCapitalize="words"
                   placeholderTextColor="#666"
                 />
@@ -117,10 +130,22 @@ export default function RegisterScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Email"
-                  value={email}
-                  onChangeText={setEmail}
+                  value={formData.email}
+                  onChangeText={(value) => handleChange('email', value)}
                   autoCapitalize="none"
                   keyboardType="email-address"
+                  placeholderTextColor="#666"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Phone Number"
+                  value={formData.phone}
+                  onChangeText={(value) => handleChange('phone', value)}
+                  keyboardType="phone-pad"
                   placeholderTextColor="#666"
                 />
               </View>
@@ -130,8 +155,8 @@ export default function RegisterScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Password"
-                  value={password}
-                  onChangeText={setPassword}
+                  value={formData.password}
+                  onChangeText={(value) => handleChange('password', value)}
                   secureTextEntry
                   placeholderTextColor="#666"
                 />
@@ -142,15 +167,15 @@ export default function RegisterScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Confirm Password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  value={formData.confirmPassword}
+                  onChangeText={(value) => handleChange('confirmPassword', value)}
                   secureTextEntry
                   placeholderTextColor="#666"
                 />
               </View>
 
               <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, isLoading && styles.buttonDisabled]}
                 onPress={handleRegister}
                 disabled={isLoading}
               >
@@ -163,6 +188,7 @@ export default function RegisterScreen() {
               <TouchableOpacity
                 onPress={() => router.push('/login')}
                 style={styles.linkButton}
+                disabled={isLoading}
               >
                 <Text style={styles.linkText}>Already have an account? Login</Text>
               </TouchableOpacity>
@@ -249,6 +275,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     color: '#fff',

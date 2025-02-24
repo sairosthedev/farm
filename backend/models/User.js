@@ -1,64 +1,90 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Name is required'],
-    trim: true
+    required: [true, 'Please add a name']
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: [true, 'Please add an email'],
     unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    match: [
+      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+      'Please add a valid email'
+    ]
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters long']
+    required: [true, 'Please add a password'],
+    minlength: 6,
+    select: false
+  },
+  phone: {
+    type: String,
+    required: [true, 'Please add a phone number']
+  },
+  avatar: {
+    type: String,
+    default: 'default-avatar.png'
   },
   role: {
     type: String,
-    enum: ['farmer', 'admin'],
-    default: 'farmer'
+    enum: ['user', 'admin', 'driver'],
+    default: 'user'
   },
-  location: {
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  expertise: [{
     type: String,
-    trim: true
+    enum: ['farming', 'logistics', 'marketing', 'technical']
+  }],
+  location: {
+    type: {
+      type: String,
+      enum: ['Point']
+    },
+    coordinates: {
+      type: [Number],
+      index: '2dsphere'
+    },
+    address: String
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  resetPasswordToken: String,
+  resetPasswordExpire: Date
+}, {
+  timestamps: true
 });
 
-// Hash password before saving
+// Encrypt password using bcrypt
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
-    return next();
-  }
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error) {
-    next(error);
   }
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Method to check password
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+// Sign JWT and return
+userSchema.methods.getSignedJwtToken = function() {
+  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE
+  });
 };
 
-// Remove password when converting to JSON
-userSchema.methods.toJSON = function() {
-  const user = this.toObject();
-  delete user.password;
-  return user;
+// Match user entered password to hashed password in database
+userSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Virtual field to check if user is admin
+userSchema.virtual('isAdminUser').get(function() {
+  return this.role === 'admin' || this.isAdmin;
+});
 
 module.exports = mongoose.model('User', userSchema); 
