@@ -91,6 +91,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="add-product"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="home"
         options={({ navigation }) => ({
           title: 'Home',
