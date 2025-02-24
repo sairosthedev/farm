@@ -73,7 +73,8 @@ export default function MarketplaceScreen() {
         visible={!!selectedProduct}
         onRequestClose={() => setSelectedProduct(null)}
       >
-        <BlurView intensity={20} style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
           <View style={styles.modalContent}>
             <Pressable 
               style={styles.closeButton}
@@ -124,7 +125,7 @@ export default function MarketplaceScreen() {
               </Pressable>
             </View>
           </View>
-        </BlurView>
+        </View>
       </Modal>
     );
   };
@@ -415,18 +416,20 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   modalContent: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     minHeight: '80%',
+    marginTop: 'auto',
     padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+    elevation: 5,
   },
   closeButton: {
     position: 'absolute',
