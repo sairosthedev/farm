@@ -20,9 +20,15 @@ type ProductStore = {
   filteredProducts: Product[];
   selectedCategory: string;
   searchQuery: string;
+  priceRange: { min: number; max: number };
+  selectedLocation: string;
+  sellerType: 'all' | 'verified' | 'unverified';
   addProduct: (product: Omit<Product, 'id'>) => void;
   setCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
+  setPriceRange: (range: { min: number; max: number }) => void;
+  setLocation: (location: string) => void;
+  setSellerType: (type: 'all' | 'verified' | 'unverified') => void;
   applyFilters: () => void;
 };
 
@@ -97,6 +103,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
   filteredProducts: [],
   selectedCategory: 'all',
   searchQuery: '',
+  priceRange: { min: 0, max: 20000 },
+  selectedLocation: '',
+  sellerType: 'all',
 
   addProduct: (product) => {
     const newProduct = {
@@ -119,8 +128,30 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     get().applyFilters();
   },
 
+  setPriceRange: (range) => {
+    set({ priceRange: range });
+    get().applyFilters();
+  },
+
+  setLocation: (location) => {
+    set({ selectedLocation: location });
+    get().applyFilters();
+  },
+
+  setSellerType: (type) => {
+    set({ sellerType: type });
+    get().applyFilters();
+  },
+
   applyFilters: () => {
-    const { products, selectedCategory, searchQuery } = get();
+    const { 
+      products, 
+      selectedCategory, 
+      searchQuery, 
+      priceRange, 
+      selectedLocation, 
+      sellerType 
+    } = get();
     
     let filtered = [...products];
     
@@ -139,6 +170,28 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           product.name.toLowerCase().includes(query) ||
           product.location.toLowerCase().includes(query) ||
           product.seller.name.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply price range filter
+    filtered = filtered.filter(
+      (product) => 
+        product.price >= priceRange.min && 
+        product.price <= priceRange.max
+    );
+
+    // Apply location filter
+    if (selectedLocation) {
+      filtered = filtered.filter(
+        (product) => product.location === selectedLocation
+      );
+    }
+
+    // Apply seller type filter
+    if (sellerType !== 'all') {
+      filtered = filtered.filter(
+        (product) => 
+          sellerType === 'verified' ? product.seller.verified : !product.seller.verified
       );
     }
     

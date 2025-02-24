@@ -82,7 +82,7 @@ export default function TabLayout() {
           marginBottom: 4,
           fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
         },
-        tabBarButton: route.name === 'index' ? () => null : undefined,
+        tabBarButton: (route.name === 'index' || route.name === 'add-product') ? () => null : undefined,
       })}>
       <Tabs.Screen
         name="index"

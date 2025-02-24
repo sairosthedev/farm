@@ -6,11 +6,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProductStore, Product } from '../store/ProductStore';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
+import Slider from '@react-native-community/slider';
 
 export default function MarketplaceScreen() {
-  const { products, filteredProducts, selectedCategory, setCategory, applyFilters } = useProductStore();
+  const { 
+    products, 
+    filteredProducts, 
+    selectedCategory, 
+    setCategory, 
+    applyFilters,
+    priceRange,
+    setPriceRange,
+    selectedLocation,
+    setLocation,
+    sellerType,
+    setSellerType
+  } = useProductStore();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [tempPriceRange, setTempPriceRange] = useState(priceRange);
+
+  // Get unique locations from products
+  const locations = [...new Set(products.map(p => p.location))];
 
   useEffect(() => {
     applyFilters();
@@ -128,22 +145,106 @@ export default function MarketplaceScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Price Range</Text>
-            {/* Add price range slider here */}
-          </View>
+          <ScrollView style={styles.filtersScroll}>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Price Range</Text>
+              <View style={styles.priceRangeContainer}>
+                <Text style={styles.priceRangeText}>
+                  ${tempPriceRange.min.toFixed(0)} - ${tempPriceRange.max.toFixed(0)}
+                </Text>
+                <Slider
+                  style={styles.priceSlider}
+                  minimumValue={0}
+                  maximumValue={20000}
+                  value={tempPriceRange.max}
+                  onValueChange={(value) => 
+                    setTempPriceRange(prev => ({ ...prev, max: value }))
+                  }
+                  minimumTrackTintColor="#2D6A4F"
+                  maximumTrackTintColor="#D1D1D1"
+                />
+              </View>
+            </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Location</Text>
-            {/* Add location filter here */}
-          </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Location</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.locationContainer}
+              >
+                <Pressable
+                  style={[
+                    styles.locationChip,
+                    selectedLocation === '' && styles.locationChipActive,
+                  ]}
+                  onPress={() => setLocation('')}
+                >
+                  <Text style={[
+                    styles.locationChipText,
+                    selectedLocation === '' && styles.locationChipTextActive,
+                  ]}>
+                    All
+                  </Text>
+                </Pressable>
+                {locations.map((location) => (
+                  <Pressable
+                    key={location}
+                    style={[
+                      styles.locationChip,
+                      selectedLocation === location && styles.locationChipActive,
+                    ]}
+                    onPress={() => setLocation(location)}
+                  >
+                    <Text style={[
+                      styles.locationChipText,
+                      selectedLocation === location && styles.locationChipTextActive,
+                    ]}>
+                      {location}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Seller Type</Text>
-            {/* Add seller type filter here */}
-          </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Seller Type</Text>
+              <View style={styles.sellerTypeContainer}>
+                {(['all', 'verified', 'unverified'] as const).map((type) => (
+                  <Pressable
+                    key={type}
+                    style={[
+                      styles.sellerTypeButton,
+                      sellerType === type && styles.sellerTypeButtonActive,
+                    ]}
+                    onPress={() => setSellerType(type)}
+                  >
+                    <Text style={[
+                      styles.sellerTypeText,
+                      sellerType === type && styles.sellerTypeTextActive,
+                    ]}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                    {type === 'verified' && (
+                      <Ionicons 
+                        name="checkmark-circle" 
+                        size={16} 
+                        color={sellerType === type ? '#FFF' : '#2D6A4F'} 
+                      />
+                    )}
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
 
-          <Pressable style={styles.applyFiltersButton} onPress={() => setShowFilters(false)}>
+          <Pressable 
+            style={styles.applyFiltersButton} 
+            onPress={() => {
+              setPriceRange(tempPriceRange);
+              setShowFilters(false);
+            }}
+          >
             <Text style={styles.applyFiltersText}>Apply Filters</Text>
           </Pressable>
         </View>
@@ -451,5 +552,67 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  filtersScroll: {
+    flex: 1,
+  },
+  priceRangeContainer: {
+    paddingHorizontal: 8,
+  },
+  priceRangeText: {
+    fontSize: 16,
+    color: '#2D6A4F',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  priceSlider: {
+    width: '100%',
+    height: 40,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+  },
+  locationChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    marginRight: 8,
+  },
+  locationChipActive: {
+    backgroundColor: '#2D6A4F',
+  },
+  locationChipText: {
+    color: '#666',
+  },
+  locationChipTextActive: {
+    color: '#FFF',
+  },
+  sellerTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  sellerTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    gap: 4,
+  },
+  sellerTypeButtonActive: {
+    backgroundColor: '#2D6A4F',
+  },
+  sellerTypeText: {
+    color: '#666',
+  },
+  sellerTypeTextActive: {
+    color: '#FFF',
   },
 }); 
