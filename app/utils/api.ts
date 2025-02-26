@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from './config';
+import axios, { AxiosInstance } from 'axios';
 
 const TIMEOUT_DURATION = 15000; // 15 seconds timeout
 
@@ -54,284 +55,250 @@ export const storage = {
   }
 };
 
-// API client with authentication
 class ApiClient {
-  private static instance: ApiClient;
-  private token: string | null = null;
+  private api: AxiosInstance;
 
-  private constructor() {}
+  constructor() {
+    this.api = axios.create({
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: TIMEOUT_DURATION,
+    });
 
-  static getInstance(): ApiClient {
-    if (!ApiClient.instance) {
-      ApiClient.instance = new ApiClient();
-    }
-    return ApiClient.instance;
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors() {
+    this.api.interceptors.request.use(
+      async (config) => {
+        try {
+          const token = await storage.getItem('authToken');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        } catch (error) {
+          console.error('Error getting token:', error);
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    this.api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 401) {
+          await storage.removeItem('authToken');
+          await storage.removeItem('userData');
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   setToken(token: string | null) {
-    this.token = token;
+    if (token) {
+      this.api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete this.api.defaults.headers.common['Authorization'];
+    }
   }
 
-  async getHeaders() {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+  // Auth endpoints
+  async login(email: string, password: string) {
+    const response = await this.api.post('/auth/login', { email, password });
+    return response.data;
+  }
+
+  async register(userData: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    location: string;
+  }) {
+    const response = await this.api.post('/auth/register', userData);
+    return response.data;
+  }
+
+  async getCurrentUser() {
+    const response = await this.api.get('/auth/me');
+    return response.data;
+  }
+
+  // Logistics endpoints
+  async createLogisticsRequest(requestData: {
+    type: 'pickup' | 'delivery' | 'storage';
+    pickupLocation: {
+      address: string;
+      coordinates: {
+        lat: number;
+        lng: number;
+      };
     };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    return headers;
+    deliveryLocation?: {
+      address: string;
+      coordinates: {
+        lat: number;
+        lng: number;
+      };
+    };
+    scheduledDate: Date;
+    items: Array<{
+      product: string;
+      quantity: number;
+      unit: string;
+    }>;
+    vehicleType: 'small' | 'medium' | 'large' | 'refrigerated';
+    specialInstructions?: string;
+    price: number;
+  }) {
+    const response = await this.api.post('/logistics', requestData);
+    return response.data;
   }
 
-  async get(endpoint: string) {
-    try {
-      const response = await fetchWithTimeout(`${API_URL}${endpoint}`, {
-        headers: await this.getHeaders(),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Network response was not ok');
-      }
-      
-      return response.json();
-    } catch (error) {
-      console.error(`GET request failed for ${endpoint}:`, error);
-      throw error;
-    }
+  async getLogisticsRequests(params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    status?: string;
+  }) {
+    const response = await this.api.get('/logistics', { params });
+    return response.data;
   }
 
-  async post(endpoint: string, data: any) {
-    try {
-      console.log(`Making POST request to ${API_URL}${endpoint}`);
-      const response = await fetchWithTimeout(`${API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: await this.getHeaders(),
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Network response was not ok');
-      }
-      
-      return response.json();
-    } catch (error) {
-      console.error(`POST request failed for ${endpoint}:`, error);
-      throw error;
-    }
+  async getLogisticsRequest(id: string) {
+    const response = await this.api.get(`/logistics/${id}`);
+    return response.data;
   }
 
-  async put(endpoint: string, data: any) {
-    try {
-      const response = await fetchWithTimeout(`${API_URL}${endpoint}`, {
-        method: 'PUT',
-        headers: await this.getHeaders(),
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Network response was not ok');
-      }
-      
-      return response.json();
-    } catch (error) {
-      console.error(`PUT request failed for ${endpoint}:`, error);
-      throw error;
-    }
+  async updateLogisticsRequest(
+    id: string,
+    updateData: Partial<{
+      status: string;
+      specialInstructions: string;
+      scheduledDate: Date;
+    }>
+  ) {
+    const response = await this.api.put(`/logistics/${id}`, updateData);
+    return response.data;
   }
 
-  async delete(endpoint: string) {
-    try {
-      const response = await fetchWithTimeout(`${API_URL}${endpoint}`, {
-        method: 'DELETE',
-        headers: await this.getHeaders(),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Network response was not ok');
-      }
-      
-      return response.json();
-    } catch (error) {
-      console.error(`DELETE request failed for ${endpoint}:`, error);
-      throw error;
-    }
+  async deleteLogisticsRequest(id: string) {
+    const response = await this.api.delete(`/logistics/${id}`);
+    return response.data;
+  }
+
+  // Products endpoints
+  async getProducts(params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    isAvailable?: boolean;
+    lat?: number;
+    lng?: number;
+    maxDistance?: number;
+  }) {
+    const response = await this.api.get('/products', { params });
+    return response.data;
+  }
+
+  async createProduct(productData: {
+    name: string;
+    description: string;
+    price: number;
+    quantity: number;
+    unit: string;
+    category: string;
+    images: string[];
+    location: {
+      coordinates: number[];
+      address: string;
+    };
+  }) {
+    const response = await this.api.post('/products', productData);
+    return response.data;
+  }
+
+  async getProduct(id: string) {
+    const response = await this.api.get(`/products/${id}`);
+    return response.data;
+  }
+
+  async updateProduct(
+    id: string,
+    updateData: Partial<{
+      name: string;
+      description: string;
+      price: number;
+      quantity: number;
+      isAvailable: boolean;
+    }>
+  ) {
+    const response = await this.api.put(`/products/${id}`, updateData);
+    return response.data;
+  }
+
+  async deleteProduct(id: string) {
+    const response = await this.api.delete(`/products/${id}`);
+    return response.data;
+  }
+
+  // Orders endpoints
+  async createOrder(orderData: {
+    items: Array<{
+      product: string;
+      quantity: number;
+    }>;
+    shippingAddress: {
+      street: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+      coordinates: number[];
+    };
+    paymentMethod: 'cash' | 'card' | 'bank_transfer';
+    notes?: string;
+  }) {
+    const response = await this.api.post('/orders', orderData);
+    return response.data;
+  }
+
+  async getBuyerOrders() {
+    const response = await this.api.get('/orders/buyer');
+    return response.data;
+  }
+
+  async getFarmerOrders() {
+    const response = await this.api.get('/orders/farmer');
+    return response.data;
+  }
+
+  async getOrder(id: string) {
+    const response = await this.api.get(`/orders/${id}`);
+    return response.data;
+  }
+
+  async updateOrderStatus(
+    id: string,
+    status: 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  ) {
+    const response = await this.api.put(`/orders/${id}/status`, { status });
+    return response.data;
+  }
+
+  async cancelOrder(id: string) {
+    const response = await this.api.post(`/orders/${id}/cancel`);
+    return response.data;
   }
 }
 
-export const api = ApiClient.getInstance();
-
-// Auth-related API functions
-export const authApi = {
-  async testConnection() {
-    try {
-      console.log('Testing connection to:', `${API_URL}/auth/login`);
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'OPTIONS',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': '*/*',
-          'Access-Control-Request-Method': 'POST',
-          'Access-Control-Request-Headers': 'content-type'
-        },
-      });
-      console.log('Connection test response status:', response.status);
-      console.log('Connection test response headers:', {
-        'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
-        'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
-        'access-control-allow-headers': response.headers.get('access-control-allow-headers')
-      });
-      return response.ok || response.status === 204;
-    } catch (error) {
-      console.error('Connection test failed with error:', error);
-      if (error instanceof TypeError && error.message.includes('Network request failed')) {
-        console.log('This appears to be a network connectivity issue. Checking if server is reachable...');
-        try {
-          // Try a direct fetch to the base URL
-          await fetch(API_URL.replace('/api', ''));
-          console.log('Base server is reachable, but API endpoint is not responding correctly');
-        } catch (e) {
-          console.log('Base server is not reachable. This might be an incorrect IP or server not running');
-        }
-      }
-      return false;
-    }
-  },
-
-  async login(email: string, password: string) {
-    try {
-      // Test connection before attempting login
-      const isConnected = await this.testConnection();
-      if (!isConnected) {
-        console.log('Current API URL configuration:', {
-          API_URL,
-          platform: Platform.OS,
-          isDev: __DEV__
-        });
-        throw new Error(
-          'Cannot connect to the server. Please ensure:\n' +
-          '1. The backend server is running\n' +
-          '2. You are using the correct IP address\n' +
-          '3. Your device is on the same network as the server'
-        );
-      }
-
-      console.log('Attempting login with email:', email);
-      return await api.post('/auth/login', { email, password });
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
-    }
-  },
-
-  async register(data: { name: string; email: string; password: string; phone: string }) {
-    return api.post('/auth/register', data);
-  },
-
-  async getCurrentUser() {
-    return api.get('/auth/me');
-  },
-
-  async updateProfile(data: any) {
-    return api.put('/auth/profile', data);
-  }
-};
-
-// Posts-related API functions
-export const postsApi = {
-  async getPosts(params?: { page?: number; limit?: number; category?: string; tag?: string }) {
-    const queryParams = new URLSearchParams(params as any).toString();
-    return api.get(`/posts${queryParams ? `?${queryParams}` : ''}`);
-  },
-
-  async createPost(data: any) {
-    return api.post('/posts', data);
-  },
-
-  async getPost(id: string) {
-    return api.get(`/posts/${id}`);
-  },
-
-  async updatePost(id: string, data: any) {
-    return api.put(`/posts/${id}`, data);
-  },
-
-  async deletePost(id: string) {
-    return api.delete(`/posts/${id}`);
-  },
-
-  async likePost(id: string) {
-    return api.post(`/posts/${id}/like`, {});
-  },
-
-  async addComment(id: string, content: string) {
-    return api.post(`/posts/${id}/comments`, { content });
-  }
-};
-
-// Advisory-related API functions
-export const advisoryApi = {
-  async getAdvisories(params?: { page?: number; limit?: number; category?: string; season?: string; crop?: string }) {
-    const queryParams = new URLSearchParams(params as any).toString();
-    return api.get(`/advisory${queryParams ? `?${queryParams}` : ''}`);
-  },
-
-  async createAdvisory(data: any) {
-    return api.post('/advisory', data);
-  },
-
-  async getAdvisory(id: string) {
-    return api.get(`/advisory/${id}`);
-  },
-
-  async updateAdvisory(id: string, data: any) {
-    return api.put(`/advisory/${id}`, data);
-  },
-
-  async deleteAdvisory(id: string) {
-    return api.delete(`/advisory/${id}`);
-  },
-
-  async likeAdvisory(id: string) {
-    return api.post(`/advisory/${id}/like`, {});
-  }
-};
-
-// Logistics-related API functions
-export const logisticsApi = {
-  async getRequests(params?: { page?: number; limit?: number; type?: string; status?: string }) {
-    const queryParams = new URLSearchParams(params as any).toString();
-    return api.get(`/logistics${queryParams ? `?${queryParams}` : ''}`);
-  },
-
-  async createRequest(data: any) {
-    return api.post('/logistics', data);
-  },
-
-  async getRequest(id: string) {
-    return api.get(`/logistics/${id}`);
-  },
-
-  async updateRequest(id: string, data: any) {
-    return api.put(`/logistics/${id}`, data);
-  },
-
-  async deleteRequest(id: string) {
-    return api.delete(`/logistics/${id}`);
-  },
-
-  async updateRequestStatus(id: string, data: { status: string; assignedDriver?: string }) {
-    return api.post(`/logistics/${id}/status`, data);
-  }
-};
-
-// Default export
-export default {
-  api,
-  authApi,
-  storage
-}; 
+export const api = new ApiClient();
+export default ApiClient; 

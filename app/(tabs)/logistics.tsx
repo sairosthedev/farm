@@ -1,83 +1,117 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-
-type Transport = {
-  id: string;
-  type: string;
-  capacity: string;
-  location: string;
-  price: number;
-  specialFeatures: string[];
-  estimatedDistance?: string;
-  temperatureControl?: {
-    available: boolean;
-    range: string;
-  };
-  driver: {
-    name: string;
-    rating: number;
-    image: string;
-    completedAgriDeliveries: number;
-  };
-};
-
-const SAMPLE_TRANSPORTS: Transport[] = [
-  {
-    id: '1',
-    type: '3-Ton Refrigerated Truck',
-    capacity: '3000kg',
-    location: 'Harare',
-    price: 250,
-    specialFeatures: ['Temperature Controlled', 'GPS Tracking', 'Weatherproof'],
-    estimatedDistance: '45km',
-    temperatureControl: {
-      available: true,
-      range: '2°C to 8°C'
-    },
-    driver: {
-      name: 'David Moyo',
-      rating: 4.8,
-      image: 'https://images.unsplash.com/photo-1600486913747-55e5470d6f40?q=80&w=300',
-      completedAgriDeliveries: 156
-    },
-  },
-  {
-    id: '2',
-    type: 'Pick-up Truck',
-    capacity: '1000kg',
-    location: 'Bulawayo',
-    price: 150,
-    specialFeatures: ['Tarpaulin Cover', 'Quick Loading'],
-    estimatedDistance: '30km',
-    driver: {
-      name: 'Grace Ndlovu',
-      rating: 4.9,
-      image: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=300',
-      completedAgriDeliveries: 89
-    },
-  },
-];
+import { useState, useEffect } from 'react';
+import { bookTransport, getActiveDeliveries, cancelDelivery, Transport, getAvailableTransports } from '../utils/logistics';
 
 export default function LogisticsScreen() {
   const [activeBooking, setActiveBooking] = useState<Transport | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedTransport, setSelectedTransport] = useState<Transport | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [availableTransports, setAvailableTransports] = useState<Transport[]>([]);
+  const [isLoadingTransports, setIsLoadingTransports] = useState(true);
+
+  useEffect(() => {
+    loadActiveDelivery();
+    loadAvailableTransports();
+  }, []);
+
+  const loadAvailableTransports = async () => {
+    try {
+      setIsLoadingTransports(true);
+      const transports = await getAvailableTransports();
+      setAvailableTransports(transports);
+    } catch (error) {
+      console.error('Error loading available transports:', error);
+    } finally {
+      setIsLoadingTransports(false);
+    }
+  };
+
+  const loadActiveDelivery = async () => {
+    try {
+      const activeDeliveries = await getActiveDeliveries();
+      if (activeDeliveries && activeDeliveries.length > 0) {
+        // Convert backend data to Transport type
+        const delivery = activeDeliveries[0];
+        setActiveBooking({
+          id: delivery._id,
+          type: delivery.vehicleType === 'refrigerated' ? '3-Ton Refrigerated Truck' : 
+                delivery.vehicleType === 'large' ? '3-Ton Truck' :
+                delivery.vehicleType === 'medium' ? 'Pick-up Truck' : 'Small Van',
+          capacity: delivery.vehicleType === 'large' ? '3000kg' : 
+                   delivery.vehicleType === 'medium' ? '1000kg' : '500kg',
+          location: delivery.pickupLocation.address,
+          price: delivery.price,
+          specialFeatures: delivery.specialInstructions ? delivery.specialInstructions.split(', ') : [],
+          driver: {
+            name: delivery.assignedDriver?.name || 'Unassigned',
+            rating: 4.8,
+            image: delivery.assignedDriver?.avatar || 'https://images.unsplash.com/photo-1600486913747-55e5470d6f40?q=80&w=300',
+            completedAgriDeliveries: 0
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading active delivery:', error);
+    }
+  };
 
   const handleBooking = (transport: Transport) => {
     setSelectedTransport(transport);
     setShowBookingModal(true);
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     if (selectedTransport) {
-      setActiveBooking(selectedTransport);
-      setShowBookingModal(false);
+      setIsLoading(true);
+      try {
+        await bookTransport(
+          selectedTransport,
+          'Harare Central Market', // You would get this from user input or location service
+          'Bulawayo Distribution Center' // You would get this from user input or location service
+        );
+        setActiveBooking(selectedTransport);
+        setShowBookingModal(false);
+        Alert.alert(
+          'Booking Confirmed',
+          `Your transport with ${selectedTransport.driver.name} has been booked successfully!`
+        );
+        loadActiveDelivery(); // Reload the active delivery to get the latest data
+      } catch (error) {
+        console.error('Error confirming booking:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleCancelBooking = async () => {
+    if (activeBooking) {
       Alert.alert(
-        'Booking Confirmed',
-        `Your transport with ${selectedTransport.driver.name} has been booked successfully!`
+        'Cancel Booking',
+        'Are you sure you want to cancel this booking?',
+        [
+          { text: 'No', style: 'cancel' },
+          { 
+            text: 'Yes', 
+            style: 'destructive',
+            onPress: async () => {
+              setIsLoading(true);
+              try {
+                await cancelDelivery(activeBooking.id);
+                setActiveBooking(null);
+              } catch (error) {
+                console.error('Error cancelling booking:', error);
+              } finally {
+                setIsLoading(false);
+              }
+            }
+          }
+        ]
       );
     }
   };
@@ -134,20 +168,7 @@ export default function LogisticsScreen() {
             </View>
             <Pressable 
               style={styles.cancelButton}
-              onPress={() => {
-                Alert.alert(
-                  'Cancel Booking',
-                  'Are you sure you want to cancel this booking?',
-                  [
-                    { text: 'No', style: 'cancel' },
-                    { 
-                      text: 'Yes', 
-                      style: 'destructive',
-                      onPress: () => setActiveBooking(null)
-                    }
-                  ]
-                );
-              }}
+              onPress={handleCancelBooking}
             >
               <Text style={styles.cancelButtonText}>Cancel Booking</Text>
             </Pressable>
@@ -158,83 +179,102 @@ export default function LogisticsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Available Transport</Text>
         <Text style={styles.sectionSubtitle}>Select the best option for your produce</Text>
-        {SAMPLE_TRANSPORTS.map((transport) => (
-          <Pressable 
-            key={transport.id} 
-            style={styles.transportCard}
-            onPress={() => handleBooking(transport)}
-          >
-            <LinearGradient
-              colors={['rgba(45, 106, 79, 0.05)', 'rgba(45, 106, 79, 0.02)']}
-              style={styles.cardGradient}
+        
+        {isLoadingTransports ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2D6A4F" />
+            <Text style={styles.loadingText}>Loading available transports...</Text>
+          </View>
+        ) : availableTransports.length === 0 ? (
+          <View style={styles.noTransportsContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#666" />
+            <Text style={styles.noTransportsText}>No transports available at the moment</Text>
+            <Pressable 
+              style={styles.refreshButton}
+              onPress={loadAvailableTransports}
             >
-              <View style={styles.transportInfo}>
-                <View style={styles.driverInfo}>
-                  <Image
-                    source={{ uri: transport.driver.image }}
-                    style={styles.driverImage}
-                    contentFit="cover"
-                  />
-                  <View>
-                    <Text style={styles.driverName}>{transport.driver.name}</Text>
-                    <View style={styles.rating}>
-                      <Ionicons name="star" size={16} color="#FFB800" />
-                      <Text style={styles.ratingText}>{transport.driver.rating}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.transportDetails}>
-                  <Text style={styles.transportType}>{transport.type}</Text>
-                  <View style={styles.detailsRow}>
-                    <View style={styles.detailItem}>
-                      <Ionicons name="cube" size={14} color="#666" />
-                      <Text style={styles.detailText}>{transport.capacity}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                      <Ionicons name="location" size={14} color="#666" />
-                      <Text style={styles.detailText}>
-                        {transport.location}
-                        {transport.estimatedDistance && ` (${transport.estimatedDistance})`}
-                      </Text>
-                    </View>
-                  </View>
-                  {transport.temperatureControl && (
-                    <View style={styles.temperatureControlContainer}>
-                      <Ionicons name="thermometer" size={14} color="#2D6A4F" />
-                      <Text style={styles.temperatureControl}>
-                        Temperature Range: {transport.temperatureControl.range}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.features}>
-                    {transport.specialFeatures.map((feature, index) => (
-                      <View key={index} style={styles.featureTag}>
-                        <Text style={styles.featureText}>{feature}</Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.deliveryStats}>
-                    <Ionicons name="checkmark-circle" size={14} color="#2D6A4F" />
-                    <Text style={styles.completedDeliveries}>
-                      {transport.driver.completedAgriDeliveries} successful deliveries
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>${transport.price}</Text>
-                  <Text style={styles.priceUnit}>/trip</Text>
-                </View>
-              </View>
-              <Pressable 
-                style={styles.bookButton}
-                onPress={() => handleBooking(transport)}
+              <Text style={styles.refreshButtonText}>Refresh</Text>
+            </Pressable>
+          </View>
+        ) : (
+          availableTransports.map((transport) => (
+            <Pressable 
+              key={transport.id} 
+              style={styles.transportCard}
+              onPress={() => handleBooking(transport)}
+            >
+              <LinearGradient
+                colors={['rgba(45, 106, 79, 0.05)', 'rgba(45, 106, 79, 0.02)']}
+                style={styles.cardGradient}
               >
-                <Text style={styles.bookButtonText}>Book Now</Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.buttonIcon} />
-              </Pressable>
-            </LinearGradient>
-          </Pressable>
-        ))}
+                <View style={styles.transportInfo}>
+                  <View style={styles.driverInfo}>
+                    <Image
+                      source={{ uri: transport.driver.image }}
+                      style={styles.driverImage}
+                      contentFit="cover"
+                    />
+                    <View>
+                      <Text style={styles.driverName}>{transport.driver.name}</Text>
+                      <View style={styles.rating}>
+                        <Ionicons name="star" size={16} color="#FFB800" />
+                        <Text style={styles.ratingText}>{transport.driver.rating}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.transportDetails}>
+                    <Text style={styles.transportType}>{transport.type}</Text>
+                    <View style={styles.detailsRow}>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="cube" size={14} color="#666" />
+                        <Text style={styles.detailText}>{transport.capacity}</Text>
+                      </View>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="location" size={14} color="#666" />
+                        <Text style={styles.detailText}>
+                          {transport.location}
+                          {transport.estimatedDistance && ` (${transport.estimatedDistance})`}
+                        </Text>
+                      </View>
+                    </View>
+                    {transport.temperatureControl && (
+                      <View style={styles.temperatureControlContainer}>
+                        <Ionicons name="thermometer" size={14} color="#2D6A4F" />
+                        <Text style={styles.temperatureControl}>
+                          Temperature Range: {transport.temperatureControl.range}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.features}>
+                      {transport.specialFeatures.map((feature, index) => (
+                        <View key={index} style={styles.featureTag}>
+                          <Text style={styles.featureText}>{feature}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.deliveryStats}>
+                      <Ionicons name="checkmark-circle" size={14} color="#2D6A4F" />
+                      <Text style={styles.completedDeliveries}>
+                        {transport.driver.completedAgriDeliveries} successful deliveries
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.price}>${transport.price}</Text>
+                    <Text style={styles.priceUnit}>/trip</Text>
+                  </View>
+                </View>
+                <Pressable 
+                  style={styles.bookButton}
+                  onPress={() => handleBooking(transport)}
+                >
+                  <Text style={styles.bookButtonText}>Book Now</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.buttonIcon} />
+                </Pressable>
+              </LinearGradient>
+            </Pressable>
+          ))
+        )}
       </View>
 
       <Modal
@@ -646,6 +686,37 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#D32F2F',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  noTransportsContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  noTransportsText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  refreshButton: {
+    marginTop: 16,
+    backgroundColor: '#2D6A4F',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#FFF',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

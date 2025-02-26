@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Platform } from 'react-native';
-import { api, storage, authApi } from '../utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api, storage } from '../utils/api';
 
 interface User {
   _id: string;
@@ -15,7 +16,15 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (token: string, userData: User) => Promise<void>;
+  token: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (userData: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    location: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
   updateUser: (userData: Partial<User>) => Promise<void>;
@@ -26,6 +35,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,18 +44,19 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadStoredAuth = async () => {
     try {
-      const token = await storage.getItem('authToken');
+      const storedToken = await storage.getItem('authToken');
       const storedUser = await storage.getItem('userData');
       
-      if (token && storedUser) {
+      if (storedToken && storedUser) {
         const userData = JSON.parse(storedUser);
-        api.setToken(token);
+        api.setToken(storedToken);
+        setTokenState(storedToken);
         setIsAuthenticated(true);
         setUser(userData);
 
         // Verify token and get fresh user data
         try {
-          const { user: freshUserData } = await authApi.getCurrentUser();
+          const { user: freshUserData } = await api.getCurrentUser();
           setUser(freshUserData);
         } catch (error) {
           console.error('Error refreshing user data:', error);
@@ -60,41 +71,62 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (token: string, userData: User) => {
+  const login = async (email: string, password: string) => {
     try {
+      const { token, user: userData } = await api.login(email, password);
       await storage.setItem('authToken', token);
       await storage.setItem('userData', JSON.stringify(userData));
       api.setToken(token);
+      setTokenState(token);
       setIsAuthenticated(true);
       setUser(userData);
     } catch (error) {
-      console.error('Error storing auth info:', error);
+      console.error('Error during login:', error);
+      throw error;
+    }
+  };
+
+  const register = async (userData: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    location: string;
+  }) => {
+    try {
+      const { token, user: newUser } = await api.register(userData);
+      await storage.setItem('authToken', token);
+      await storage.setItem('userData', JSON.stringify(newUser));
+      api.setToken(token);
+      setTokenState(token);
+      setIsAuthenticated(true);
+      setUser(newUser);
+    } catch (error) {
+      console.error('Error during registration:', error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
-      await Promise.all([
-        storage.removeItem('authToken'),
-        storage.removeItem('userData')
-      ]);
+      await storage.removeItem('authToken');
+      await storage.removeItem('userData');
       api.setToken(null);
+      setTokenState(null);
       setIsAuthenticated(false);
       setUser(null);
-      // Return a promise that resolves after state updates are definitely complete
-      return new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
-      console.error('Error removing auth info:', error);
+      console.error('Error during logout:', error);
       throw error;
     }
   };
 
   const updateUser = async (userData: Partial<User>) => {
+    if (!user) return;
     try {
-      const { user: updatedUser } = await authApi.updateProfile(userData);
-      setUser(updatedUser);
+      const updatedUser = { ...user, ...userData };
       await storage.setItem('userData', JSON.stringify(updatedUser));
+      setUser(updatedUser);
     } catch (error) {
       console.error('Error updating user:', error);
       throw error;
@@ -102,7 +134,18 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        token,
+        login,
+        logout,
+        loading,
+        updateUser,
+        register,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
