@@ -197,4 +197,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     
     set({ filteredProducts: filtered });
   },
-})); 
+}));
+
+export default {
+  // Export your store or related functionality here
+}; 

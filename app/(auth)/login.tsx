@@ -15,16 +15,7 @@ import { useAuth } from './AuthContext';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '../utils/api';
-
-// API URL configuration
-const DEV_IP = '192.168.100.16'; // Replace with your computer's local IP address
-const API_URL = Platform.select({
-  web: 'http://localhost:5000/api',
-  // For Expo Go on physical device, use local IP
-  android: __DEV__ ? `http://${DEV_IP}:5000/api` : 'http://10.0.2.2:5000/api',
-  ios: __DEV__ ? `http://${DEV_IP}:5000/api` : 'http://localhost:5000/api',
-  default: 'http://localhost:5000/api',
-});
+import { API_URL } from '../utils/config';
 
 console.log('Platform:', Platform.OS);
 console.log('Using API URL:', API_URL);
